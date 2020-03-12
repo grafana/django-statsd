@@ -41,6 +41,18 @@ class GraphiteRequestTimingMiddleware(MiddlewareMixin):
 
     def process_view(self, request, view_func, view_args, view_kwargs):
         view = view_func
+
+        # if the config contains a metric name override then use that instead of the generated one
+        for request_path, metric in getattr(settings, 'STATSD_METRIC_NAME_OVERRIDES', {}).items():
+            if request_path == getattr(request, 'path', '') and 'module' in metric and 'name' in metric:
+                try:
+                    request._view_module = metric['module']
+                    request._view_name = metric['name']
+                    request._start_time = time.time()
+                except AttributeError:
+                    pass
+                return
+
         if not inspect.isfunction(view_func):
             view = view.__class__
         try:
